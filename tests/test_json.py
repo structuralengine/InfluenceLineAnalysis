@@ -1,4 +1,5 @@
 import pytest
+import os
 import json
 
 def test_001():
@@ -9,7 +10,9 @@ def test_001():
 
 
     # 入力データを読み込む
-    f = open('./example_files/test.json', encoding="utf-8")
+    folder_path = os.path.abspath(os.path.dirname(os.path.abspath(__file__)))
+    int_file_path = os.path.join(folder_path, 'example_files/test.json')
+    f = open(int_file_path, encoding="utf-8")
     fstr = f.read()  # ファイル終端まで全て読んだデータを返す
     f.close()
     inp = dataInput()
@@ -41,15 +44,15 @@ def test_001():
 
     # 結果を返送する
     # out_text = json.dumps(result)
-    # fout=open('./example_files/test.out.json', 'w')
+    out_file_path = os.path.join(folder_path, 'example_files/test.out.json')
+    # fout=open(out_file_path, 'w')
     # print(out_text, file=fout)
     # fout.close()
     # exit()
 
 
 if __name__ == "__main__": 
-    import sys 
-    import os
+    import sys
     sys.path.append(os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + "/../"))
     import conftest
 
