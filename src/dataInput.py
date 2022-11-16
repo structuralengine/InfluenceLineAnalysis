@@ -17,12 +17,6 @@ class dataInput:
         js = self.decompress(data)
         self.setJSONString(js)
 
-    def readTestData(self, fnameR='test.json'):
-        f = open(fnameR, encoding="utf-8")
-        fstr = f.read()  # ファイル終端まで全て読んだデータを返す
-        f.close()
-        self.setJSONString(fstr)
-
     def setJSONString(self, fstr):
         js = json.loads(fstr, object_pairs_hook=dict)
         self.setJSON(js)
