@@ -17,14 +17,15 @@ def test_001():
     inp.setJSONString(fstr)
 
     # 計算する
-    out_text = FrameCalc(inp).calcrate()
+    result = FrameCalc(inp).calcrate()
+    out_text = json.dumps(result)
 
     # 結果を返送する
     out_file_path = os.path.join(folder_path, 'example_files/min_test.out.json')
     fout=open(out_file_path, 'w')
     print(out_text, file=fout)
     fout.close()
-    exit()
+
 
 
 if __name__ == "__main__":
