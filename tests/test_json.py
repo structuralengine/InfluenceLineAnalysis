@@ -1,4 +1,3 @@
-import pytest
 import os
 import json
 
@@ -28,7 +27,7 @@ def test_001():
     exit()
 
 
-if __name__ == "__main__": 
+if __name__ == "__main__":
     import sys
     sys.path.append(os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + "/../"))
     import conftest
