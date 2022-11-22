@@ -2,7 +2,7 @@
 # 3D Frame Analysis
 # ======================
 import numpy as np
-from scipy.spatial import Delaunay
+from scipy.spatial import Delaunay, delaunay_plot_2d
 from sympy.geometry import Point, Polygon
 import matplotlib.pyplot as plt
 from matplotlib import path
@@ -36,7 +36,8 @@ class FrameCalc:
         L = np.sqrt((x2-x1)**2 + (y2-y1)**2)
         return L
 
-    def _calc_cross_point(self, pointA, pointB, pointC, pointD, coordinates):
+
+    def _calc_cross_point(self, pointA, pointB, pointC, pointD):
         cross_point = (0,0,0)
 
         if pointA[0] > pointB[0]:
@@ -76,13 +77,8 @@ class FrameCalc:
             judge = True
 
             # 交点のZ座標を算出
-            for i in range(len(coordinates)):
-                coordinate = coordinates[i]
-                point = coordinate.key
-                if point[0] == pointA[0] and point[1] == pointA[1]:
-                    zA = coordinate.value
-                elif point[0] == pointB[0] and point[1] == pointB[1]:
-                    zB = coordinate.value
+            zA = pointA[2]
+            zB = pointB[2]
             dx = x2 - x1
             dy = y2 - y1
             dz = np.abs(zB - zA)
@@ -95,6 +91,19 @@ class FrameCalc:
             judge = False
 
         return judge, cross_point
+    
+    def on_the_line(self, pointA, pointB, pointC):
+        x1 = pointA[0]
+        x2 = pointB[0]
+        x3 = pointC[0]
+        y1 = pointA[1]
+        y2 = pointB[1]
+        y3 = pointC[1]
+        if (x1 <= x3 and x3 <= x2) or (x2 <= x3 and x3 <= x1) :
+            if (y1 <= y3 and y3 <= y2) or (y2 <= y3 and y3 <= y1):
+                if ((y3 * (x1 - x2)) + (y1 * (x2 - x3)) + (y2 * (x3 - x1)) == 0):
+                    return True;
+        return False;
 
     # 全ての荷重ケースの解析を開始する
     def calcrate(self) -> str:
@@ -124,6 +133,7 @@ class FrameCalc:
             coordinate = pointlist[i]
             coordinate.extend(point_z[i])
             coordinates.append(coordinate)
+        Array_point = np.array(coordinates)
 
         # 節点を繋いだ線分(外縁)の、起終点を線分ごとにまとめる
         line_points = []
@@ -163,18 +173,30 @@ class FrameCalc:
         for i,X in enumerate(line_x):
             porygon_point = (X, line_y[i])
             porygon_points.append(porygon_point)
+
         # 境界をポリゴンとして、内外判定を実施
+        index = []
         polygon = Polygon(*porygon_points)
         for i in range(len(pointlist)):
             pickpoint_x = pointlist[i][0]
             pickpoint_y = pointlist[i][1]
-            pickpoint = (pickpoint_x, pickpoint_y)
+            pickpoint0 = (pickpoint_x, pickpoint_y)
+            pickpoint = Point(pickpoint_x, pickpoint_y)
             judge = polygon.encloses_point(pickpoint)
             if judge == True:
-                point_in_range.append(pickpoint)
+                point_in_range.append(pickpoint0)
+            else:
+                for j in range(len(line_points)):
+                    line_pointA = line_points[j][0]
+                    line_pointB = line_points[j][1]
+                    pointc = list(pickpoint0)
+                    judge2 = self.on_the_line(line_pointA, line_pointB, pointc)
+                    if judge2 == True:
+                        point_in_range.append(pickpoint0)
+
 
         # 外縁とTINの交点を算出
-        component_points = P[com] # TINの構成点（3点）
+        component_points = Array_point[com] # TINの構成点（3点）
         edge_points = []
         for i in range(len(component_points)):
             cp = component_points[i]
@@ -185,15 +207,15 @@ class FrameCalc:
                 LP = line_points[j]
                 LP1 = LP[0]
                 LP2 = LP[1]
-                crosspoint1 = self._calc_cross_point(cp1, cp2, LP1, LP2, coordinates)
+                crosspoint1 = self._calc_cross_point(cp1, cp2, LP1, LP2)
                 judge1 = crosspoint1[0]
                 if judge1 == True:
                     edge_points.append(crosspoint1[1])
-                crosspoint2 = self._calc_cross_point(cp2, cp3, LP1, LP2, coordinates)
+                crosspoint2 = self._calc_cross_point(cp2, cp3, LP1, LP2)
                 judge2 = crosspoint2[0]
                 if judge2 == True:
                     edge_points.append(crosspoint2[1])
-                crosspoint3 = self._calc_cross_point(cp3, cp1, LP1, LP2, coordinates)
+                crosspoint3 = self._calc_cross_point(cp3, cp1, LP1, LP2)
                 judge3 = crosspoint3[0]
                 if judge3 == True:
                     edge_points.append(crosspoint3[1])
@@ -208,8 +230,11 @@ class FrameCalc:
         # 境界内でTINを再作成
         Points_in_range = np.array(point_in_range)
         tri_in_range = Delaunay(Points_in_range)
+        #fig = delaunay_plot_2d(tri_in_range)
+        #fig.savefig('src/scipy_matplotlib_delaunay.png')
         # TINの構成を3角形ごとに抽出
         Volumes = []
+        test = []
         Component_in_range = Points_in_range[tri_in_range.simplices]
         for i in range(len(Component_in_range)):
             tri_point = Component_in_range[i]
@@ -224,6 +249,7 @@ class FrameCalc:
                         point_z = CP[2]
                         break
                 tri_points.append([point_x, point_y, point_z])
+            test.append(tri_points)
             P1 = tri_points[0]
             P2 = tri_points[1]
             P3 = tri_points[2]
@@ -231,12 +257,11 @@ class FrameCalc:
             L2 = self.get_Length(P2, P3)
             L3 = self.get_Length(P3, P1)
             S = self.HeronFormula(L1, L2, L3)
-            V = S * (P1[2] + P2[2] + P3[2]) / 3.0
+            H = (P1[2] + P2[2] + P3[2]) / 3.0
+            V = S * H
             Volumes.append(V)
 
 
         Volume = np.sum(Volumes)
 
         return Volume
-
-
